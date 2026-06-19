@@ -9,6 +9,12 @@ import { uid } from './db';
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
+// True when Vercel Blob is configured — clients use direct-to-Blob uploads then,
+// which bypass the serverless request-body size limit (large videos work).
+export function isBlobEnabled() {
+  return useBlob;
+}
+
 // Saves one file and returns its public URL.
 // `buffer` is a Node Buffer; `ext` includes the dot (e.g. ".mp4").
 export async function saveMedia(buffer, { ext, contentType }) {

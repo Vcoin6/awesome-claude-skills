@@ -1,30 +1,64 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { upload } from '@vercel/blob/client';
+
+const VIDEO = (type) => type.startsWith('video');
 
 export default function MediaUploader({ media, setMedia }) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [drag, setDrag] = useState(false);
+  // Whether the server has Vercel Blob configured → use direct client uploads.
+  const [blobEnabled, setBlobEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((c) => setBlobEnabled(Boolean(c.blobEnabled)))
+      .catch(() => {});
+  }, []);
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
     setError('');
     setUploading(true);
-    const fd = new FormData();
-    files.forEach((f) => fd.append('files', f));
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      setMedia((m) => [...m, ...data.media].slice(0, 10));
+      const uploaded = blobEnabled
+        ? await uploadDirectToBlob(files)
+        : await uploadViaServer(files);
+      setMedia((m) => [...m, ...uploaded].slice(0, 10));
     } catch (e) {
       setError(e.message);
     } finally {
       setUploading(false);
     }
+  }
+
+  // Production path: browser → Vercel Blob directly (no function body limit).
+  async function uploadDirectToBlob(files) {
+    const out = [];
+    for (const file of files) {
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        contentType: file.type,
+        handleUploadUrl: '/api/upload/blob',
+      });
+      out.push({ url: blob.url, type: VIDEO(file.type) ? 'video' : 'image', size: file.size });
+    }
+    return out;
+  }
+
+  // Local/dev path: multipart through our route (filesystem storage).
+  async function uploadViaServer(files) {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    return data.media;
   }
 
   function remove(i) {
@@ -54,7 +88,7 @@ export default function MediaUploader({ media, setMedia }) {
         <p className="mt-3 text-sm font-semibold text-white">
           {uploading ? 'Uploading…' : 'Drop photos & video here'}
         </p>
-        <p className="text-xs text-white/40">PNG, JPG, WEBP, GIF, MP4, WEBM, MOV · up to 50MB each · max 10</p>
+        <p className="text-xs text-white/40">PNG, JPG, WEBP, GIF, MP4, WEBM, MOV · up to {blobEnabled ? '200MB' : '50MB'} each · max 10</p>
       </div>
 
       {error && <p className="mt-2 text-sm text-red-300">{error}</p>}

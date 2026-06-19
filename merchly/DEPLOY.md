@@ -71,10 +71,12 @@ vercel --prod     # production deploy
 
 ## Notes & limits
 
-- **Uploads:** Vercel serverless request bodies are capped (~4.5 MB) on the
-  function path. The 50 MB limit in code is enforced, but for large videos in
-  production prefer **client-side direct-to-Blob uploads** (`@vercel/blob/client`)
-  — a small follow-up. Images and short clips work as-is.
+- **Uploads:** handled by **client-side direct-to-Blob** (`@vercel/blob/client`).
+  When a Blob store is connected, the browser uploads files **straight to Vercel
+  Blob** after getting a scoped token from `/api/upload/blob`, bypassing the
+  serverless ~4.5 MB request-body limit — so full-size videos (up to 200 MB)
+  work in production. Locally (no Blob token) it falls back to multipart through
+  `/api/upload` to the filesystem. This switch is automatic.
 - **KV single-key store:** the whole dataset lives under one KV key with
   serialized writes — perfect for an MVP. For heavy concurrent traffic, migrate
   `lib/db.js` to Vercel Postgres / Neon (same `readDB`/`writeDB` API).
