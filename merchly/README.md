@@ -40,10 +40,34 @@ The percentage is a single env var (`PLATFORM_FEE_PERCENT`) — change it any ti
 1. **Simulation (default).** With no API keys, Merchly runs a built-in ledger so the
    entire flow — checkout, the 95/5 split, seller earnings, your fees — is fully
    demoable out of the box.
-2. **Stripe Connect (real money).** Add `STRIPE_SECRET_KEY` and the app switches to
-   Stripe **destination charges** with an `application_fee_amount` equal to 5%.
-   Stripe moves your fee to your account and the seller's 95% to their connected
-   account on every transaction — no manual payouts, fully compliant money movement.
+2. **Stripe Connect (real money).** Add your Stripe keys and the app switches to
+   the **separate charges and transfers** model — the correct pattern for a
+   marketplace where one cart can hold items from multiple sellers:
+   - The buyer is charged **once** for the whole cart on your platform account
+     (real card capture via Stripe's **Payment Element** on web and the native
+     **PaymentSheet** on mobile).
+   - When the payment succeeds, the **`/api/webhooks/stripe`** handler creates a
+     Stripe **Transfer** to each seller for their 95% share, and your platform
+     keeps the 5% on every line — automatically, no manual payouts.
+   - Sellers onboard for payouts via **Stripe Connect Express**; `account.updated`
+     webhooks keep their payout status in sync.
+
+### Enabling real payments
+
+```bash
+# in merchly/.env.local
+STRIPE_SECRET_KEY=sk_test_xxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx     # from `stripe listen`
+```
+
+```bash
+# forward Stripe events to the local webhook during development
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
+
+That's it — the same keys drive both the web app and the mobile app (the mobile
+app reads the publishable key from `/api/config`).
 
 ---
 
@@ -57,6 +81,7 @@ The percentage is a single env var (`PLATFORM_FEE_PERCENT`) — change it any ti
 - 🛒 **Cart & checkout** — persistent cart, secure checkout, instant **95/5 split** with a clear breakdown.
 - 📊 **Seller dashboard** — net earnings (95%), gross sales, your fees, units sold, listing manager, and recent sales.
 - 💳 **Payouts** — one-click Stripe Connect onboarding (simulated in demo mode).
+- 📱 **Native mobile app** — a full iOS/Android app in [`../merchly-mobile`](../merchly-mobile) built on this same API, including native Stripe PaymentSheet checkout.
 - 📱 **Fully responsive** — looks great on phone, tablet, and desktop (mobile-first).
 
 ---
@@ -138,7 +163,8 @@ merchly/
 │   ├── dashboard/              # Seller dashboard (earnings, listings)
 │   ├── register/ login/        # Auth (seller/shopper role picker)
 │   ├── cart/ checkout/         # Cart + checkout with 95/5 split
-│   └── api/                    # auth, listings, upload, checkout, seller/onboard
+│   └── api/                    # auth (+me), listings, upload, checkout,
+│                               # seller/onboard, seller/orders, webhooks/stripe, config
 ├── components/                 # Navbar, ProductCard, MediaUploader, ListingComposer…
 ├── lib/
 │   ├── db.js                   # JSON datastore (swap for a real DB in prod)
@@ -167,7 +193,7 @@ The MVP is complete and runnable. To scale toward "millions of users":
 2. **Media:** move uploads to S3/Cloudflare R2 + a CDN, add image/video transcoding & thumbnails.
 3. **Payments:** finish Stripe Connect (webhooks for payout status, refunds, disputes, tax).
 4. **Trust & safety:** content moderation, seller verification (KYC via Stripe), buyer protection, ratings/reviews.
-5. **Growth:** native mobile apps (React Native/Expo share this API), push notifications, shareable drop pages, creator referral program.
+5. **Growth:** native mobile apps ✅ (see [`../merchly-mobile`](../merchly-mobile)), plus push notifications, shareable drop pages, and a creator referral program.
 6. **Ops:** rate limiting, audit logs, analytics, and an admin console for you (the owner) to watch revenue.
 
 ---

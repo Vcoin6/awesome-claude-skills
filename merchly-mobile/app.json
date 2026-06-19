@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Merchly",
+    "slug": "merchly",
+    "scheme": "merchly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0B12",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0B12"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.merchly.app"
+    },
+    "android": {
+      "package": "com.merchly.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0B12"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.merchly.app",
+          "enableGooglePay": true
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    }
+  }
+}

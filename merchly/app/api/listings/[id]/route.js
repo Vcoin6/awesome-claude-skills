@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getRequestUser } from '@/lib/auth';
 
 export async function GET(_req, { params }) {
   const db = await readDB();
@@ -9,8 +9,8 @@ export async function GET(_req, { params }) {
   return NextResponse.json({ listing });
 }
 
-export async function DELETE(_req, { params }) {
-  const user = await getCurrentUser();
+export async function DELETE(req, { params }) {
+  const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = await readDB();

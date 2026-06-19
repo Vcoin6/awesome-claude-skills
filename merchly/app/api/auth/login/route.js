@@ -14,6 +14,8 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
   }
 
-  setAuthCookie(signToken(user));
-  return NextResponse.json({ user: sanitizeUser(user) });
+  const token = signToken(user);
+  setAuthCookie(token);
+  // `token` is for native mobile clients (Bearer auth); web uses the cookie.
+  return NextResponse.json({ user: sanitizeUser(user), token });
 }

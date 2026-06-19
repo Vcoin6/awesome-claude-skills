@@ -43,7 +43,8 @@ export async function POST(req) {
 
   const token = signToken(user);
   setAuthCookie(token);
-  return NextResponse.json({ user: sanitizeUser(user) }, { status: 201 });
+  // `token` is for native mobile clients (Bearer auth); web uses the cookie.
+  return NextResponse.json({ user: sanitizeUser(user), token }, { status: 201 });
 }
 
 function pickColor(seed = '') {

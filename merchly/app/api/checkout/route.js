@@ -1,13 +1,26 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, uid } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
-import { processPayment, feeBreakdown, isStripeEnabled } from '@/lib/payments';
+import { getRequestUser } from '@/lib/auth';
+import {
+  createCheckoutIntent,
+  feeBreakdown,
+  isStripeEnabled,
+  getPublishableKey,
+} from '@/lib/payments';
 
 // POST /api/checkout
 // Body: { items: [{ id, qty }], buyer: { email, name } }
+//
 // The server NEVER trusts client prices — it re-prices every line from the DB.
+//
+// Simulation mode: the charge "succeeds" instantly, orders are marked paid and
+//   stock is decremented immediately.
+// Stripe mode: ONE PaymentIntent is created for the whole cart total; orders are
+//   created as `pending` and a clientSecret is returned for the client to
+//   confirm the card. The webhook (`/api/webhooks/stripe`) marks orders paid,
+//   pays out each seller their 95%, and decrements stock.
 export async function POST(req) {
-  const currentUser = await getCurrentUser();
+  const currentUser = await getRequestUser(req);
   const { items, buyer } = await req.json().catch(() => ({}));
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -23,18 +36,21 @@ export async function POST(req) {
     return NextResponse.json({ error: 'An email is required for your receipt.' }, { status: 400 });
   }
 
-  // Re-price and validate stock from the source of truth.
+  // Re-price + validate stock from the source of truth.
   const lines = [];
   for (const item of items) {
     const listing = db.listings.find((l) => l.id === item.id && l.status === 'active');
     if (!listing) {
       return NextResponse.json({ error: 'An item in your cart is no longer available.' }, { status: 409 });
     }
-    const qty = Math.max(1, Math.min(Number(item.qty) || 1, listing.stock || 1));
+    if ((listing.stock || 0) <= 0) {
+      return NextResponse.json({ error: `“${listing.title}” is sold out.` }, { status: 409 });
+    }
+    const qty = Math.max(1, Math.min(Number(item.qty) || 1, listing.stock));
     lines.push({ listing, qty, lineTotal: listing.priceCents * qty });
   }
 
-  // Group by seller so each seller gets their own 95% payout + 5% to platform.
+  // Group by seller so each seller gets their own 95% payout.
   const bySeller = new Map();
   for (const line of lines) {
     const sid = line.listing.sellerId;
@@ -42,7 +58,11 @@ export async function POST(req) {
     bySeller.get(sid).push(line);
   }
 
+  const transferGroup = uid('grp');
+  const stripe = isStripeEnabled();
+
   const orders = [];
+  const splits = [];
   let totalAmount = 0;
   let totalPlatformFee = 0;
   let totalSellerNet = 0;
@@ -50,16 +70,11 @@ export async function POST(req) {
   for (const [sellerId, sellerLines] of bySeller) {
     const seller = db.users.find((u) => u.id === sellerId);
     const amount = sellerLines.reduce((s, l) => s + l.lineTotal, 0);
+    const split = feeBreakdown(amount);
 
-    const payment = await processPayment({
-      amountCents: amount,
-      seller,
-      buyer: buyerInfo,
-      description: `Merchly order — ${sellerLines.map((l) => l.listing.title).join(', ')}`.slice(0, 200),
-    });
-
-    const order = {
+    orders.push({
       id: uid('ord'),
+      transferGroup,
       buyerId: buyerInfo.id,
       buyerName: buyerInfo.name,
       buyerEmail: buyerInfo.email,
@@ -71,38 +86,58 @@ export async function POST(req) {
         priceCents: l.listing.priceCents,
         qty: l.qty,
       })),
-      amount: payment.amount,
-      platformFee: payment.platformFee,
-      sellerNet: payment.sellerNet,
-      feePercent: payment.feePercent,
-      paymentMode: payment.mode,
-      paymentRef: payment.reference,
-      status: payment.status === 'succeeded' ? 'paid' : 'pending',
+      amount: split.amount,
+      platformFee: split.platformFee,
+      sellerNet: split.sellerNet,
+      feePercent: split.feePercent,
+      paymentMode: stripe ? 'stripe' : 'simulation',
+      paymentRef: null,
+      // Stripe payouts wait for the webhook; simulation is instantly paid.
+      status: stripe ? 'pending' : 'paid',
+      paidOut: false,
       createdAt: new Date().toISOString(),
-    };
-    orders.push(order);
-    totalAmount += payment.amount;
-    totalPlatformFee += payment.platformFee;
-    totalSellerNet += payment.sellerNet;
+    });
+
+    splits.push({ sellerId, stripeAccountId: seller?.stripeAccountId, sellerNet: split.sellerNet });
+    totalAmount += split.amount;
+    totalPlatformFee += split.platformFee;
+    totalSellerNet += split.sellerNet;
   }
 
-  // Persist orders + decrement stock.
+  // Create the single buyer charge for the whole cart.
+  const intent = await createCheckoutIntent({
+    amountCents: totalAmount,
+    buyer: buyerInfo,
+    transferGroup,
+    metadata: { orderCount: String(orders.length) },
+  });
+
+  for (const o of orders) o.paymentRef = intent.paymentIntentId;
+
+  // Persist orders. In simulation mode (instant success) also decrement stock now.
   await writeDB((d) => {
     for (const o of orders) d.orders.push(o);
-    for (const line of lines) {
-      const l = d.listings.find((x) => x.id === line.listing.id);
-      if (l && typeof l.stock === 'number') l.stock = Math.max(0, l.stock - line.qty);
+    if (!stripe) {
+      for (const line of lines) {
+        const l = d.listings.find((x) => x.id === line.listing.id);
+        if (l && typeof l.stock === 'number') l.stock = Math.max(0, l.stock - line.qty);
+      }
     }
   });
 
   return NextResponse.json({
     ok: true,
-    mode: isStripeEnabled() ? 'stripe' : 'simulation',
-    orders,
+    mode: intent.mode,
+    transferGroup,
+    // Present only in Stripe mode — the client confirms the card with these.
+    clientSecret: intent.clientSecret,
+    publishableKey: stripe ? getPublishableKey() : null,
+    orders: orders.map((o) => ({ id: o.id, sellerName: o.sellerName, sellerNet: o.sellerNet, status: o.status })),
     summary: {
-      ...feeBreakdown(totalAmount),
+      amount: totalAmount,
       platformFee: totalPlatformFee,
       sellerNet: totalSellerNet,
+      feePercent: feeBreakdown(totalAmount).feePercent,
       orderCount: orders.length,
     },
   });

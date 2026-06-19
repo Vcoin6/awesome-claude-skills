@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, uid } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getRequestUser } from '@/lib/auth';
 
 // GET /api/listings?q=&category=&seller=&sort=
 export async function GET(req) {
@@ -33,7 +33,7 @@ export async function GET(req) {
 
 // POST /api/listings  (sellers only)
 export async function POST(req) {
-  const user = await getCurrentUser();
+  const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: 'You must be logged in.' }, { status: 401 });
   if (user.role !== 'seller') {
     return NextResponse.json({ error: 'Switch to a seller account to list merch.' }, { status: 403 });

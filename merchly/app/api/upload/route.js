@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getCurrentUser } from '@/lib/auth';
+import { getRequestUser } from '@/lib/auth';
 import { uid } from '@/lib/db';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
@@ -18,7 +18,7 @@ const ALLOWED = {
 
 // POST /api/upload  (multipart form-data, field "files")
 export async function POST(req) {
-  const user = await getCurrentUser();
+  const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: 'You must be logged in to upload.' }, { status: 401 });
 
   const form = await req.formData();

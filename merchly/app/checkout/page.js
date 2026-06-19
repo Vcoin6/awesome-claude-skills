@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getCart, clearCart } from '@/lib/cart';
 import { formatMoney } from '@/lib/format';
+import StripePayment from '@/components/StripePayment';
 
 export default function CheckoutPage() {
   const [items, setItems] = useState([]);
@@ -12,6 +13,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  // When Stripe is configured the API returns a clientSecret to confirm.
+  const [stripeIntent, setStripeIntent] = useState(null);
 
   useEffect(() => {
     setItems(getCart());
@@ -21,7 +24,8 @@ export default function CheckoutPage() {
   const fee = Math.round(subtotal * 0.05);
   const sellerNet = subtotal - fee;
 
-  async function pay(e) {
+  // Step 1: create the order(s) + payment intent on the server.
+  async function startCheckout(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -32,11 +36,27 @@ export default function CheckoutPage() {
     });
     const data = await res.json();
     setLoading(false);
-    if (!res.ok) return setError(data.error || 'Payment failed.');
-    clearCart();
-    setResult(data);
+    if (!res.ok) return setError(data.error || 'Checkout failed.');
+
+    if (data.mode === 'stripe' && data.clientSecret) {
+      // Hand off to the Stripe Payment Element for real card capture.
+      setStripeIntent({ clientSecret: data.clientSecret, publishableKey: data.publishableKey, summary: data.summary });
+    } else {
+      // Simulation: payment already succeeded server-side.
+      clearCart();
+      setResult(data);
+    }
   }
 
+  function onStripeSuccess() {
+    clearCart();
+    setResult({
+      mode: 'stripe',
+      summary: stripeIntent.summary,
+    });
+  }
+
+  // ── Success screen ──
   if (result) {
     return (
       <div className="mx-auto grid min-h-[70vh] max-w-lg place-items-center px-6 text-center">
@@ -48,7 +68,7 @@ export default function CheckoutPage() {
           <p className="mt-2 text-sm text-white/55">
             {result.mode === 'simulation'
               ? 'Demo payment processed. Sellers were credited their 95% and Merchly kept its 5%.'
-              : 'Payment processed via Stripe. Sellers receive 95% automatically.'}
+              : 'Payment captured via Stripe. Each seller is automatically paid their 95%.'}
           </p>
           <div className="mt-5 space-y-2 rounded-xl bg-ink-soft p-4 text-left text-sm">
             <Row label="Total paid" value={formatMoney(result.summary.amount)} />
@@ -75,18 +95,18 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="font-display text-3xl font-700 text-white">Checkout</h1>
-      <form onSubmit={pay} className="mt-6 grid gap-8 lg:grid-cols-3">
+      <form onSubmit={startCheckout} className="mt-6 grid gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <section className="card p-5">
             <h2 className="mb-4 font-display text-lg font-700 text-white">Contact</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="label">Full name</label>
-                <input className="input" value={buyer.name} onChange={(e) => setBuyer((b) => ({ ...b, name: e.target.value }))} required />
+                <input className="input" value={buyer.name} onChange={(e) => setBuyer((b) => ({ ...b, name: e.target.value }))} disabled={!!stripeIntent} required />
               </div>
               <div>
                 <label className="label">Email (for receipt)</label>
-                <input type="email" className="input" value={buyer.email} onChange={(e) => setBuyer((b) => ({ ...b, email: e.target.value }))} required />
+                <input type="email" className="input" value={buyer.email} onChange={(e) => setBuyer((b) => ({ ...b, email: e.target.value }))} disabled={!!stripeIntent} required />
               </div>
             </div>
           </section>
@@ -94,27 +114,39 @@ export default function CheckoutPage() {
           <section className="card p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-lg font-700 text-white">Payment</h2>
-              <span className="pill bg-white/5 text-white/50 ring-1 ring-white/10">Demo / test mode</span>
+              <span className="pill bg-white/5 text-white/50 ring-1 ring-white/10">
+                {stripeIntent ? 'Stripe secure' : 'Demo / test mode'}
+              </span>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="label">Card number</label>
-                <input className="input" value={card.number} onChange={(e) => setCard((c) => ({ ...c, number: e.target.value }))} placeholder="4242 4242 4242 4242" inputMode="numeric" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+
+            {stripeIntent ? (
+              <StripePayment
+                clientSecret={stripeIntent.clientSecret}
+                publishableKey={stripeIntent.publishableKey}
+                amountCents={subtotal}
+                onSuccess={onStripeSuccess}
+              />
+            ) : (
+              <div className="space-y-4">
                 <div>
-                  <label className="label">Expiry</label>
-                  <input className="input" value={card.exp} onChange={(e) => setCard((c) => ({ ...c, exp: e.target.value }))} placeholder="MM/YY" />
+                  <label className="label">Card number</label>
+                  <input className="input" value={card.number} onChange={(e) => setCard((c) => ({ ...c, number: e.target.value }))} placeholder="4242 4242 4242 4242" inputMode="numeric" />
                 </div>
-                <div>
-                  <label className="label">CVC</label>
-                  <input className="input" value={card.cvc} onChange={(e) => setCard((c) => ({ ...c, cvc: e.target.value }))} placeholder="123" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Expiry</label>
+                    <input className="input" value={card.exp} onChange={(e) => setCard((c) => ({ ...c, exp: e.target.value }))} placeholder="MM/YY" />
+                  </div>
+                  <div>
+                    <label className="label">CVC</label>
+                    <input className="input" value={card.cvc} onChange={(e) => setCard((c) => ({ ...c, cvc: e.target.value }))} placeholder="123" />
+                  </div>
                 </div>
+                <p className="text-xs text-white/35">
+                  This demo simulates the 95/5 split. Add Stripe keys in <code className="text-white/50">.env.local</code> to capture real cards via Stripe Connect.
+                </p>
               </div>
-              <p className="text-xs text-white/35">
-                This demo simulates the payment split. Add Stripe keys in <code className="text-white/50">.env.local</code> to move real money via Stripe Connect.
-              </p>
-            </div>
+            )}
           </section>
         </div>
 
@@ -143,9 +175,11 @@ export default function CheckoutPage() {
             <Row label="Merchly fee (5%)" value={formatMoney(fee)} muted />
           </div>
           {error && <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
-          <button type="submit" className="btn-primary mt-5 w-full py-4" disabled={loading}>
-            {loading ? 'Processing…' : `Pay ${formatMoney(subtotal)}`}
-          </button>
+          {!stripeIntent && (
+            <button type="submit" className="btn-primary mt-5 w-full py-4" disabled={loading}>
+              {loading ? 'Processing…' : `Pay ${formatMoney(subtotal)}`}
+            </button>
+          )}
         </div>
       </form>
     </div>

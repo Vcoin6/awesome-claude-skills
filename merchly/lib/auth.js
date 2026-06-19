@@ -37,9 +37,7 @@ export function clearAuthCookie() {
   cookies().set(COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 });
 }
 
-// Returns the full (sanitized) user record for the logged-in request, or null.
-export async function getCurrentUser() {
-  const token = cookies().get(COOKIE)?.value;
+async function userFromToken(token) {
   if (!token) return null;
   let payload;
   try {
@@ -49,8 +47,21 @@ export async function getCurrentUser() {
   }
   const db = await readDB();
   const user = db.users.find((u) => u.id === payload.sub);
-  if (!user) return null;
-  return sanitizeUser(user);
+  return sanitizeUser(user || null);
+}
+
+// For server components: reads the httpOnly cookie.
+export async function getCurrentUser() {
+  return userFromToken(cookies().get(COOKIE)?.value);
+}
+
+// For API route handlers: accepts a mobile "Authorization: Bearer <token>"
+// header (native apps can't use httpOnly cookies) and falls back to the cookie
+// used by the web client.
+export async function getRequestUser(req) {
+  const header = req?.headers?.get?.('authorization') || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
+  return userFromToken(bearer || cookies().get(COOKIE)?.value);
 }
 
 export function sanitizeUser(user) {
