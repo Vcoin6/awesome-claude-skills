@@ -134,6 +134,10 @@ Demo seller login (after seeding): **novaprints@demo.merchly** / **password123**
 npm run build && npm start
 ```
 
+**Deploy to Vercel:** see [`DEPLOY.md`](./DEPLOY.md) — one-click import + Vercel KV
+(data) and Vercel Blob (media). Storage is auto-detected, so local dev stays
+zero-config while production gets persistent storage.
+
 ### Configuration (optional)
 
 Copy `.env.example` → `.env.local`:
