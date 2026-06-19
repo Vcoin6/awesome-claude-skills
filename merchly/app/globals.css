@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #0b0b12;
+  color: #ECECF4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle marketplace texture / glow behind hero sections */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(70% 60% at 50% 0%, #000 0%, transparent 80%);
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn text-white bg-brand-gradient shadow-glow hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10;
+  }
+  .card {
+    @apply rounded-2xl bg-ink-card ring-1 ring-ink-line;
+  }
+  .input {
+    @apply w-full rounded-xl bg-ink-soft px-4 py-3 text-sm text-white ring-1 ring-ink-line placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-brand-violet;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/50;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold;
+  }
+  .gradient-text {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+}
+
+/* Nice thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a40 transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 999px; }
