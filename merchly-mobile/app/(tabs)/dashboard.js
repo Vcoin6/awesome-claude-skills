@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Image, Alert, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { api, mediaUrl, formatMoney } from '../../src/api';
+import { api, uploadAssets, mediaUrl, formatMoney } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { colors, radius } from '../../src/theme';
 import { GradientButton, GhostButton } from '../../src/ui';
@@ -127,15 +127,9 @@ function NewListingForm({ onDone, onCancel }) {
 
     setBusy(true);
     try {
-      const form = new FormData();
-      for (const asset of result.assets) {
-        const isVideo = asset.type === 'video';
-        const name = asset.fileName || `upload.${isVideo ? 'mp4' : 'jpg'}`;
-        const type = asset.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg');
-        form.append('files', { uri: asset.uri, name, type });
-      }
-      const res = await api.upload(form);
-      setMedia((m) => [...m, ...res.media]);
+      // Direct-to-Blob when configured (no size limit), else multipart fallback.
+      const uploaded = await uploadAssets(result.assets);
+      setMedia((m) => [...m, ...uploaded]);
     } catch (e) {
       Alert.alert('Upload failed', e.message);
     } finally {

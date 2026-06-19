@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
 import { getRequestUser } from '@/lib/auth';
-import { uid } from '@/lib/db';
+import { saveMedia } from '@/lib/storage';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 const MAX_BYTES = 50 * 1024 * 1024; // 50MB per file
 const ALLOWED = {
   'image/jpeg': '.jpg',
@@ -17,6 +14,7 @@ const ALLOWED = {
 };
 
 // POST /api/upload  (multipart form-data, field "files")
+// Stores to Vercel Blob in production, or the local filesystem in dev.
 export async function POST(req) {
   const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: 'You must be logged in to upload.' }, { status: 401 });
@@ -27,9 +25,7 @@ export async function POST(req) {
     return NextResponse.json({ error: 'No files received.' }, { status: 400 });
   }
 
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
   const media = [];
-
   for (const file of files) {
     const ext = ALLOWED[file.type];
     if (!ext) {
@@ -42,10 +38,9 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Each file must be under 50MB.' }, { status: 413 });
     }
     const buf = Buffer.from(await file.arrayBuffer());
-    const name = `${uid('m')}${ext}`;
-    await fs.writeFile(path.join(UPLOAD_DIR, name), buf);
+    const url = await saveMedia(buf, { ext, contentType: file.type });
     media.push({
-      url: `/uploads/${name}`,
+      url,
       type: file.type.startsWith('video') ? 'video' : 'image',
       size: file.size,
     });
