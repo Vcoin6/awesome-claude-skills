@@ -11,6 +11,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
     "@stripe/stripe-react-native": "0.38.6",
+    "@vercel/blob": "^0.27.3",
     "expo": "~51.0.28",
     "expo-constants": "~16.0.2",
     "expo-image-picker": "~15.0.7",

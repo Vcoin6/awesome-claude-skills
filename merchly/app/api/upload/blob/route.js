@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { handleUpload } from '@vercel/blob/client';
-import { getRequestUser } from '@/lib/auth';
+import { getRequestUser, getUserByToken } from '@/lib/auth';
 
 // POST /api/upload/blob
 // Token broker for CLIENT direct-to-Blob uploads. The browser sends the file
@@ -24,9 +24,10 @@ export async function POST(req) {
     const result = await handleUpload({
       body,
       request: req,
-      onBeforeGenerateToken: async () => {
-        // Only logged-in users may upload.
-        const user = await getRequestUser(req);
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        // Only logged-in users may upload. Web sends its session cookie with
+        // this request; native apps (no cookie) pass their JWT via clientPayload.
+        const user = (await getRequestUser(req)) || (clientPayload ? await getUserByToken(clientPayload) : null);
         if (!user) throw new Error('You must be logged in to upload.');
         return {
           allowedContentTypes: ALLOWED_CONTENT_TYPES,

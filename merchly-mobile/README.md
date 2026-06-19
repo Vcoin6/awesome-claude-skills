@@ -50,6 +50,7 @@ Then press `i` (iOS simulator), `a` (Android), or scan the QR code with Expo Go.
 | API client | `src/api.js` — thin `fetch` wrapper, Bearer-token auth, points at the Next.js API |
 | Auth | `src/auth.js` — token stored in `expo-secure-store`, restored on launch via `/api/auth/me` |
 | Cart | `src/cart.js` — persisted in `AsyncStorage` |
+| Uploads | `src/api.js` `uploadAssets()` — **direct-to-Blob** when the backend has Vercel Blob (no size limit, large videos work), else multipart through `/api/upload`. Auto-selected via `/api/config`. |
 | Payments | `app/checkout.js` — calls `/api/checkout`, then drives Stripe's **PaymentSheet** with the returned `clientSecret`. The backend webhook pays each seller their 95%. |
 | Stripe key | Loaded at launch from `/api/config` so web + mobile share one source of truth |
 

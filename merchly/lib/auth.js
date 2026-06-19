@@ -64,6 +64,12 @@ export async function getRequestUser(req) {
   return userFromToken(bearer || cookies().get(COOKIE)?.value);
 }
 
+// Verify a raw JWT string → user. Used by the Blob upload broker for native
+// clients, which can't attach cookies and pass their token via clientPayload.
+export async function getUserByToken(token) {
+  return userFromToken(token);
+}
+
 export function sanitizeUser(user) {
   if (!user) return null;
   const { passwordHash, ...safe } = user;

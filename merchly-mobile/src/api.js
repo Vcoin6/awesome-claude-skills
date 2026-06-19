@@ -65,6 +65,58 @@ export const api = {
   sellerOrders: () => request('/api/seller/orders'),
 };
 
+// ── Media uploads ────────────────────────────────────────────────────────────
+// Mirrors the web app: when the backend has Vercel Blob configured, upload each
+// file DIRECTLY to Blob (bypassing the serverless ~4.5MB body limit, so large
+// videos work). Otherwise fall back to multipart through /api/upload.
+let _configCache;
+async function getConfig() {
+  if (!_configCache) _configCache = api.config().catch(() => ({}));
+  return _configCache;
+}
+
+function guessType(asset) {
+  const isVideo = asset.type === 'video';
+  return {
+    isVideo,
+    name: asset.fileName || `upload.${isVideo ? 'mp4' : 'jpg'}`,
+    contentType: asset.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+  };
+}
+
+// Accepts expo-image-picker assets; returns [{ url, type, size }].
+export async function uploadAssets(assets) {
+  const cfg = await getConfig();
+
+  if (cfg.blobEnabled) {
+    const { upload } = await import('@vercel/blob/client');
+    const out = [];
+    for (const asset of assets) {
+      const { isVideo, name, contentType } = guessType(asset);
+      // Pull the local file into a Blob the uploader can stream.
+      const fileBlob = await (await fetch(asset.uri)).blob();
+      const result = await upload(name, fileBlob, {
+        access: 'public',
+        contentType,
+        handleUploadUrl: `${API_URL}/api/upload/blob`,
+        // No cookie on native — pass the JWT so the broker can authenticate us.
+        clientPayload: authToken || '',
+      });
+      out.push({ url: result.url, type: isVideo ? 'video' : 'image', size: asset.fileSize || 0 });
+    }
+    return out;
+  }
+
+  // Fallback: multipart to the server (filesystem/dev).
+  const form = new FormData();
+  for (const asset of assets) {
+    const { name, contentType } = guessType(asset);
+    form.append('files', { uri: asset.uri, name, type: contentType });
+  }
+  const res = await api.upload(form);
+  return res.media;
+}
+
 export function mediaUrl(path) {
   if (!path) return null;
   return path.startsWith('http') ? path : `${API_URL}${path}`;
