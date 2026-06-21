@@ -12,6 +12,8 @@ export default function MediaUploader({ media, setMedia }) {
   const [drag, setDrag] = useState(false);
   // Whether the server has Vercel Blob configured → use direct client uploads.
   const [blobEnabled, setBlobEnabled] = useState(false);
+  // Per-file upload progress: [{ name, pct }].
+  const [progress, setProgress] = useState([]);
 
   useEffect(() => {
     fetch('/api/config')
@@ -20,11 +22,16 @@ export default function MediaUploader({ media, setMedia }) {
       .catch(() => {});
   }, []);
 
+  function setPct(index, pct) {
+    setProgress((prev) => prev.map((it, i) => (i === index ? { ...it, pct } : it)));
+  }
+
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
     setError('');
     setUploading(true);
+    setProgress(files.map((f) => ({ name: f.name, pct: 0 })));
     try {
       const uploaded = blobEnabled
         ? await uploadDirectToBlob(files)
@@ -34,31 +41,51 @@ export default function MediaUploader({ media, setMedia }) {
       setError(e.message);
     } finally {
       setUploading(false);
+      setProgress([]);
     }
   }
 
   // Production path: browser → Vercel Blob directly (no function body limit).
   async function uploadDirectToBlob(files) {
     const out = [];
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const blob = await upload(file.name, file, {
         access: 'public',
         contentType: file.type,
         handleUploadUrl: '/api/upload/blob',
+        onUploadProgress: (e) => setPct(i, Math.round(e.percentage)),
       });
+      setPct(i, 100);
       out.push({ url: blob.url, type: VIDEO(file.type) ? 'video' : 'image', size: file.size });
     }
     return out;
   }
 
-  // Local/dev path: multipart through our route (filesystem storage).
-  async function uploadViaServer(files) {
-    const fd = new FormData();
-    files.forEach((f) => fd.append('files', f));
-    const res = await fetch('/api/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Upload failed');
-    return data.media;
+  // Local/dev path: multipart through our route. Uses XHR so we get real upload
+  // progress events (fetch doesn't expose upload progress). One request → the
+  // same percentage is mirrored across all the files in this batch.
+  function uploadViaServer(files) {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      files.forEach((f) => fd.append('files', f));
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setProgress((prev) => prev.map((it) => ({ ...it, pct })));
+        }
+      };
+      xhr.onload = () => {
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data.media || []);
+        else reject(new Error(data.error || 'Upload failed'));
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload.'));
+      xhr.send(fd);
+    });
   }
 
   function remove(i) {
@@ -92,6 +119,25 @@ export default function MediaUploader({ media, setMedia }) {
       </div>
 
       {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
+
+      {progress.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {progress.map((p, i) => (
+            <div key={i}>
+              <div className="mb-1 flex justify-between text-xs text-white/50">
+                <span className="line-clamp-1 pr-2">{p.name}</span>
+                <span className="tabular-nums">{p.pct}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-ink-soft ring-1 ring-ink-line">
+                <div
+                  className="h-full rounded-full bg-brand-gradient transition-all duration-200"
+                  style={{ width: `${p.pct}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {media.length > 0 && (
         <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
