@@ -85,13 +85,15 @@ function guessType(asset) {
 }
 
 // Accepts expo-image-picker assets; returns [{ url, type, size }].
-export async function uploadAssets(assets) {
+// `onProgress(pct)` is called with overall 0–100 progress (Blob path only).
+export async function uploadAssets(assets, onProgress) {
   const cfg = await getConfig();
 
   if (cfg.blobEnabled) {
     const { upload } = await import('@vercel/blob/client');
     const out = [];
-    for (const asset of assets) {
+    for (let i = 0; i < assets.length; i++) {
+      const asset = assets[i];
       const { isVideo, name, contentType } = guessType(asset);
       // Pull the local file into a Blob the uploader can stream.
       const fileBlob = await (await fetch(asset.uri)).blob();
@@ -101,19 +103,27 @@ export async function uploadAssets(assets) {
         handleUploadUrl: `${API_URL}/api/upload/blob`,
         // No cookie on native — pass the JWT so the broker can authenticate us.
         clientPayload: authToken || '',
+        onUploadProgress: (e) => {
+          // Blend per-file progress into an overall percentage across the batch.
+          const overall = (i + (e.percentage || 0) / 100) / assets.length;
+          onProgress?.(Math.round(overall * 100));
+        },
       });
       out.push({ url: result.url, type: isVideo ? 'video' : 'image', size: asset.fileSize || 0 });
     }
+    onProgress?.(100);
     return out;
   }
 
-  // Fallback: multipart to the server (filesystem/dev).
+  // Fallback: multipart to the server (filesystem/dev). No granular progress.
+  onProgress?.(null); // signal indeterminate
   const form = new FormData();
   for (const asset of assets) {
     const { name, contentType } = guessType(asset);
     form.append('files', { uri: asset.uri, name, type: contentType });
   }
   const res = await api.upload(form);
+  onProgress?.(100);
   return res.media;
 }
 

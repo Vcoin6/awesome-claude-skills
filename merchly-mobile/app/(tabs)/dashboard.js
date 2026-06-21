@@ -114,6 +114,7 @@ function NewListingForm({ onDone, onCancel }) {
   const [stock, setStock] = useState('25');
   const [media, setMedia] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null); // null = none/indeterminate, 0–100 = pct
 
   async function pickMedia() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -126,14 +127,16 @@ function NewListingForm({ onDone, onCancel }) {
     if (result.canceled) return;
 
     setBusy(true);
+    setProgress(0);
     try {
       // Direct-to-Blob when configured (no size limit), else multipart fallback.
-      const uploaded = await uploadAssets(result.assets);
+      const uploaded = await uploadAssets(result.assets, (pct) => setProgress(pct));
       setMedia((m) => [...m, ...uploaded]);
     } catch (e) {
       Alert.alert('Upload failed', e.message);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -165,9 +168,16 @@ function NewListingForm({ onDone, onCancel }) {
         <TouchableOpacity onPress={onCancel}><Text style={s.cancel}>Cancel</Text></TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={pickMedia} style={s.uploader}>
-        <Text style={s.uploaderText}>{busy ? 'Working…' : '+ Add photos & video'}</Text>
+      <TouchableOpacity onPress={pickMedia} disabled={busy} style={s.uploader}>
+        <Text style={s.uploaderText}>
+          {busy ? (progress != null ? `Uploading ${progress}%` : 'Uploading…') : '+ Add photos & video'}
+        </Text>
       </TouchableOpacity>
+      {busy && (
+        <View style={s.progressTrack}>
+          <View style={[s.progressFill, { width: `${progress ?? 15}%` }]} />
+        </View>
+      )}
       {media.length > 0 && (
         <ScrollView horizontal style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8 }}>
           {media.map((m, i) => (
@@ -227,6 +237,8 @@ const s = StyleSheet.create({
   cancel: { color: colors.faint },
   uploader: { borderWidth: 2, borderColor: colors.line, borderStyle: 'dashed', borderRadius: radius.md, paddingVertical: 22, alignItems: 'center' },
   uploaderText: { color: colors.muted, fontWeight: '600' },
+  progressTrack: { height: 8, borderRadius: 999, backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.line, overflow: 'hidden', marginTop: 10 },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: colors.fuchsia },
   preview: { width: 70, height: 70, borderRadius: radius.sm, backgroundColor: colors.soft },
   label: { color: colors.faint, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginTop: 12, marginBottom: 6 },
   input: { backgroundColor: colors.soft, color: colors.text, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: colors.line },
