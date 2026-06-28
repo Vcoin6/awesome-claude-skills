@@ -18,6 +18,7 @@ const DEFAULT_DB = {
   users: [],
   listings: [],
   orders: [],
+  reviews: [],
 };
 
 const useKV = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);

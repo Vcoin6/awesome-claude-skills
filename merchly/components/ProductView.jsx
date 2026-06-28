@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatMoney } from '@/lib/format';
 import { addToCart } from '@/lib/cart';
+import StarRating from './StarRating';
+import ReviewsSection from './ReviewsSection';
 
-export default function ProductView({ listing }) {
+export default function ProductView({ listing, rating, canReview }) {
   const router = useRouter();
   const [active, setActive] = useState(0);
   const [added, setAdded] = useState(false);
@@ -78,6 +80,11 @@ export default function ProductView({ listing }) {
           </Link>
 
           <h1 className="mt-4 font-display text-3xl font-700 leading-tight text-white">{listing.title}</h1>
+          {rating && (
+            <div className="mt-2">
+              <StarRating value={rating.avg} count={rating.count} size={16} />
+            </div>
+          )}
           <div className="mt-3 flex items-center gap-3">
             <span className="font-display text-3xl font-700 gradient-text">{formatMoney(listing.priceCents)}</span>
             {soldOut ? (
@@ -115,6 +122,8 @@ export default function ProductView({ listing }) {
           </div>
         </div>
       </div>
+
+      <ReviewsSection listingId={listing.id} canReview={canReview} />
     </div>
   );
 }

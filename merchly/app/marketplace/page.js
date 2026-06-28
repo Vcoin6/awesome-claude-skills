@@ -52,6 +52,7 @@ export default function MarketplacePage() {
           </div>
           <select value={sort} onChange={(e) => setSort(e.target.value)} className="input w-auto">
             <option value="new">Newest</option>
+            <option value="rating">Top rated</option>
             <option value="price-asc">Price ↑</option>
             <option value="price-desc">Price ↓</option>
           </select>

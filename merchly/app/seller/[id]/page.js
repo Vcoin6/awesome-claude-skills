@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import { readDB } from '@/lib/db';
 import { timeAgo } from '@/lib/format';
+import { attachRatings, sellerRating } from '@/lib/reviews';
 import ProductCard from '@/components/ProductCard';
+import StarRating from '@/components/StarRating';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +12,13 @@ export default async function SellerPage({ params }) {
   const seller = db.users.find((u) => u.id === params.id);
   if (!seller) notFound();
 
-  const listings = db.listings
-    .filter((l) => l.sellerId === seller.id && l.status === 'active')
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const listings = attachRatings(
+    db.listings
+      .filter((l) => l.sellerId === seller.id && l.status === 'active')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    db.reviews
+  );
+  const rating = sellerRating(db.reviews, seller.id);
 
   return (
     <div>
@@ -32,6 +38,11 @@ export default async function SellerPage({ params }) {
             <p className="mt-1 text-sm text-white/50">
               Joined {timeAgo(seller.createdAt)} · {listings.length} {listings.length === 1 ? 'listing' : 'listings'}
             </p>
+            {rating.count > 0 && (
+              <div className="mt-2 flex justify-center sm:justify-start">
+                <StarRating value={rating.avg} count={rating.count} size={16} />
+              </div>
+            )}
             {seller.bio && <p className="mt-3 max-w-xl text-white/70">{seller.bio}</p>}
           </div>
         </div>

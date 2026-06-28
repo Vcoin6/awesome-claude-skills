@@ -1,15 +1,19 @@
 import Link from 'next/link';
 import { readDB } from '@/lib/db';
+import { attachRatings } from '@/lib/reviews';
 import ProductCard from '@/components/ProductCard';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const db = await readDB();
-  const featured = db.listings
-    .filter((l) => l.status === 'active')
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 8);
+  const featured = attachRatings(
+    db.listings
+      .filter((l) => l.status === 'active')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 8),
+    db.reviews
+  );
 
   return (
     <div>
