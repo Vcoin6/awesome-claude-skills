@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { readDB, writeDB } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { listingRating, canUserReview } from '@/lib/reviews';
+import { threadIdFor } from '@/lib/messages';
 import ProductView from '@/components/ProductView';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,10 @@ export default async function ProductPage({ params }) {
     userId: user?.id,
     listingId: listing.id,
   });
+  const messageHref =
+    user && user.id !== listing.sellerId
+      ? `/messages/${threadIdFor(user.id, listing.sellerId)}?to=${listing.sellerId}`
+      : null;
 
   // Best-effort view counter.
   writeDB((d) => {
@@ -36,5 +41,5 @@ export default async function ProductPage({ params }) {
     if (l) l.views = (l.views || 0) + 1;
   }).catch(() => {});
 
-  return <ProductView listing={listing} rating={rating} canReview={canReview} />;
+  return <ProductView listing={listing} rating={rating} canReview={canReview} messageHref={messageHref} />;
 }

@@ -1,7 +1,10 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { readDB } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 import { timeAgo } from '@/lib/format';
 import { attachRatings, sellerRating } from '@/lib/reviews';
+import { threadIdFor } from '@/lib/messages';
 import ProductCard from '@/components/ProductCard';
 import StarRating from '@/components/StarRating';
 
@@ -11,6 +14,9 @@ export default async function SellerPage({ params }) {
   const db = await readDB();
   const seller = db.users.find((u) => u.id === params.id);
   if (!seller) notFound();
+
+  const me = await getCurrentUser();
+  const canMessage = me && me.id !== seller.id;
 
   const listings = attachRatings(
     db.listings
@@ -44,6 +50,12 @@ export default async function SellerPage({ params }) {
               </div>
             )}
             {seller.bio && <p className="mt-3 max-w-xl text-white/70">{seller.bio}</p>}
+            {canMessage && (
+              <Link href={`/messages/${threadIdFor(me.id, seller.id)}?to=${seller.id}`} className="btn-ghost mt-4 inline-flex py-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-5.2A8 8 0 1 1 21 12Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
+                Message {seller.name}
+              </Link>
+            )}
           </div>
         </div>
       </div>

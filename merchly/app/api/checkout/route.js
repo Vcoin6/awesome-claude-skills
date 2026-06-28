@@ -7,6 +7,8 @@ import {
   isStripeEnabled,
   getPublishableKey,
 } from '@/lib/payments';
+import { notify } from '@/lib/notify';
+import { formatMoney } from '@/lib/format';
 
 // POST /api/checkout
 // Body: { items: [{ id, qty }], buyer: { email, name } }
@@ -124,6 +126,27 @@ export async function POST(req) {
       }
     }
   });
+
+  // In simulation mode the orders are paid now, so notify immediately.
+  // (In Stripe mode the webhook sends these once the charge succeeds.)
+  if (!stripe) {
+    for (const o of orders) {
+      await notify(o.sellerId, {
+        type: 'sale',
+        title: 'New sale! 🎉',
+        body: `${buyerInfo.name} bought ${o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')} — you earned ${formatMoney(o.sellerNet)}.`,
+        url: '/dashboard',
+      });
+    }
+    if (buyerInfo.id) {
+      await notify(buyerInfo.id, {
+        type: 'order',
+        title: 'Order confirmed',
+        body: `Thanks for your purchase — ${formatMoney(totalAmount)} total across ${orders.length} seller(s).`,
+        url: '/orders',
+      });
+    }
+  }
 
   return NextResponse.json({
     ok: true,

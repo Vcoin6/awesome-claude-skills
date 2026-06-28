@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readDB, writeDB, uid } from '@/lib/db';
 import { getRequestUser } from '@/lib/auth';
 import { canUserReview } from '@/lib/reviews';
+import { notify } from '@/lib/notify';
 
 // POST /api/reviews  { listingId, rating (1-5), text }
 // Only verified buyers (paid order containing the item, no prior review) may post.
@@ -39,6 +40,13 @@ export async function POST(req) {
 
   await writeDB((d) => {
     d.reviews.push(review);
+  });
+
+  await notify(listing.sellerId, {
+    type: 'review',
+    title: `New ${stars}★ review`,
+    body: `${user.name} reviewed “${listing.title}”.`,
+    url: `/product/${listingId}`,
   });
 
   return NextResponse.json({ review }, { status: 201 });

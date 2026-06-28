@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRef } from 'react';
 import { formatMoney } from '@/lib/format';
+import FavoriteButton from './FavoriteButton';
 
 export default function ProductCard({ listing }) {
   const videoRef = useRef(null);
@@ -58,9 +59,9 @@ export default function ProductCard({ listing }) {
             Video
           </span>
         )}
-        {listing.media?.length > 1 && (
-          <span className="pill absolute right-2 top-2 bg-black/60 text-white backdrop-blur">{listing.media.length} ·</span>
-        )}
+        <div className="absolute right-2 top-2">
+          <FavoriteButton listingId={listing.id} size={16} />
+        </div>
       </div>
 
       <div className="space-y-1 p-3.5">
