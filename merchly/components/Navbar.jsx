@@ -50,6 +50,7 @@ export default function Navbar({ user }) {
 
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
+              <Link href="/orders" className="text-sm text-white/70 hover:text-white">My orders</Link>
               {user.role === 'seller' && (
                 <Link href="/dashboard" className="btn-ghost py-2">Dashboard</Link>
               )}
@@ -75,6 +76,7 @@ export default function Navbar({ user }) {
         <div className="border-t border-ink-line px-4 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
             <Link href="/marketplace" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Marketplace</Link>
+            {user && <Link href="/orders" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>My orders</Link>}
             {user?.role === 'seller' && <Link href="/dashboard" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Dashboard</Link>}
             {user ? (
               <button onClick={logout} className="rounded-lg px-3 py-2 text-left text-white/80 hover:bg-white/5">Sign out</button>

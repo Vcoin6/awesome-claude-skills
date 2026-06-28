@@ -68,7 +68,15 @@ export default function ProductCard({ listing }) {
           <h3 className="line-clamp-1 text-sm font-semibold text-white">{listing.title}</h3>
           <span className="shrink-0 font-display text-sm font-700 text-white">{formatMoney(listing.priceCents)}</span>
         </div>
-        <p className="line-clamp-1 text-xs text-white/45">by {listing.sellerName}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="line-clamp-1 text-xs text-white/45">by {listing.sellerName}</p>
+          {listing.rating?.count > 0 && (
+            <span className="flex shrink-0 items-center gap-0.5 text-xs text-white/60">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="#F59E0B"><path d="m12 2 2.9 6.26 6.1.5-4.6 4 1.4 6.74L12 16.9 6.2 19.5l1.4-6.74-4.6-4 6.1-.5z" /></svg>
+              {listing.rating.avg.toFixed(1)}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

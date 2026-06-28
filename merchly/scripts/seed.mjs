@@ -99,12 +99,70 @@ async function run() {
     });
   }
 
-  const db = { users: sellers, listings, orders: [] };
+  // A demo shopper with paid orders + reviews, so ratings show out of the box.
+  const shopper = {
+    id: uid('usr'),
+    name: 'Riley Demo',
+    email: 'shopper@demo.merchly',
+    role: 'shopper',
+    passwordHash: pass,
+    bio: '',
+    avatarColor: '#10B981',
+    stripeAccountId: null,
+    payoutsEnabled: false,
+    createdAt: new Date(Date.now() - 5e9).toISOString(),
+  };
+
+  const orders = [];
+  const reviews = [];
+  const blurbs = [
+    'Incredible quality, shipped fast. Worth every penny!',
+    'Exactly as pictured — the video really sold me. Love it.',
+    'Great fit and the print is so crisp. Will buy again.',
+    'Solid drop. Packaging was premium too.',
+    '',
+  ];
+  // Review the first ~7 listings with a mix of 4–5 stars.
+  listings.slice(0, 7).forEach((l, i) => {
+    const created = new Date(Date.now() - (i + 1) * 36e5).toISOString();
+    orders.push({
+      id: uid('ord'),
+      transferGroup: uid('grp'),
+      buyerId: shopper.id,
+      buyerName: shopper.name,
+      buyerEmail: shopper.email,
+      sellerId: l.sellerId,
+      sellerName: l.sellerName,
+      items: [{ listingId: l.id, title: l.title, priceCents: l.priceCents, qty: 1 }],
+      amount: l.priceCents,
+      platformFee: Math.round(l.priceCents * 0.05),
+      sellerNet: l.priceCents - Math.round(l.priceCents * 0.05),
+      feePercent: 5,
+      paymentMode: 'simulation',
+      paymentRef: `sim_${Math.random().toString(36).slice(2, 10)}`,
+      status: 'paid',
+      paidOut: true,
+      createdAt: created,
+    });
+    reviews.push({
+      id: uid('rev'),
+      listingId: l.id,
+      sellerId: l.sellerId,
+      buyerId: shopper.id,
+      buyerName: shopper.name,
+      rating: 4 + (i % 2),
+      text: blurbs[i % blurbs.length],
+      createdAt: created,
+    });
+  });
+
+  const db = { users: [...sellers, shopper], listings, orders, reviews };
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(path.join(DATA_DIR, 'merchly.json'), JSON.stringify(db, null, 2));
 
-  console.log(`Seeded ${sellers.length} sellers and ${listings.length} listings.`);
+  console.log(`Seeded ${sellers.length} sellers, ${listings.length} listings, ${reviews.length} reviews.`);
   console.log('Demo seller login → email: novaprints@demo.merchly  password: password123');
+  console.log('Demo shopper login → email: shopper@demo.merchly  password: password123');
 }
 
 run().catch((e) => {
