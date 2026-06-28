@@ -19,6 +19,10 @@ const DEFAULT_DB = {
   listings: [],
   orders: [],
   reviews: [],
+  favorites: [],        // { id, userId, listingId, createdAt }
+  notifications: [],     // { id, userId, type, title, body, url, read, createdAt }
+  messages: [],          // { id, threadId, fromId, toId, listingId, text, createdAt }
+  pushSubscriptions: [], // { id, userId, subscription, createdAt }
 };
 
 const useKV = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);

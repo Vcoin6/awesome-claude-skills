@@ -80,7 +80,11 @@ app reads the publishable key from `/api/config`).
 - 🔎 **Marketplace** — live search, category filters, and sorting.
 - 🛒 **Cart & checkout** — persistent cart, secure checkout, instant **95/5 split** with a clear breakdown.
 - 📊 **Seller dashboard** — net earnings (95%), gross sales, your fees, units sold, listing manager, and recent sales.
-- 💳 **Payouts** — one-click Stripe Connect onboarding (simulated in demo mode).
+- 💳 **Payouts** — one-click Stripe Connect onboarding (simulated in demo mode), plus a **payout history** page with **CSV export**.
+- ⭐ **Ratings & reviews** — verified-buyer reviews with aggregate stars on cards, product, and seller pages.
+- ❤️ **Favorites / wishlist** — save listings and revisit them on a dedicated page.
+- 🔔 **Notifications** — in-app notification center (sales, reviews, messages) with an optional **Web Push** layer (VAPID).
+- 💬 **Messaging** — buyer ↔ seller direct messages with unread badges.
 - 📱 **Native mobile app** — a full iOS/Android app in [`../merchly-mobile`](../merchly-mobile) built on this same API, including native Stripe PaymentSheet checkout.
 - 📱 **Fully responsive** — looks great on phone, tablet, and desktop (mobile-first).
 

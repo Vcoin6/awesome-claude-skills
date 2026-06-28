@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
 import { constructWebhookEvent, payoutToSellers } from '@/lib/payments';
+import { notify } from '@/lib/notify';
+import { formatMoney } from '@/lib/format';
 
 // POST /api/webhooks/stripe
 // Configure this URL in your Stripe Dashboard (or `stripe listen --forward-to`)
@@ -64,6 +66,24 @@ async function onPaymentSucceeded(intent) {
     splits,
     sourceCharge: intent.latest_charge,
   });
+
+  // Notify sellers + buyer now that the charge has settled.
+  for (const o of orders) {
+    await notify(o.sellerId, {
+      type: 'sale',
+      title: 'New sale! 🎉',
+      body: `${o.buyerName} bought ${o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')} — you earned ${formatMoney(o.sellerNet)}.`,
+      url: '/dashboard',
+    });
+  }
+  if (orders[0].buyerId) {
+    await notify(orders[0].buyerId, {
+      type: 'order',
+      title: 'Order confirmed',
+      body: 'Your payment went through — thanks for shopping on Merchly!',
+      url: '/orders',
+    });
+  }
 
   // 3) Record payout references.
   await writeDB((d) => {

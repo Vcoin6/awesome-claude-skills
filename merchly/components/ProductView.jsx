@@ -7,8 +7,9 @@ import { formatMoney } from '@/lib/format';
 import { addToCart } from '@/lib/cart';
 import StarRating from './StarRating';
 import ReviewsSection from './ReviewsSection';
+import FavoriteButton from './FavoriteButton';
 
-export default function ProductView({ listing, rating, canReview }) {
+export default function ProductView({ listing, rating, canReview, messageHref }) {
   const router = useRouter();
   const [active, setActive] = useState(0);
   const [added, setAdded] = useState(false);
@@ -44,6 +45,9 @@ export default function ProductView({ listing, rating, canReview }) {
             ) : (
               <div className="grid h-full w-full place-items-center text-white/20">No media</div>
             )}
+            <div className="absolute right-3 top-3">
+              <FavoriteButton listingId={listing.id} size={20} />
+            </div>
           </div>
           {media.length > 1 && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -72,12 +76,20 @@ export default function ProductView({ listing, rating, canReview }) {
 
         {/* Details */}
         <div>
-          <Link href={`/seller/${listing.sellerId}`} className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-gradient text-xs font-bold text-white">
-              {listing.sellerName?.[0]?.toUpperCase()}
-            </span>
-            {listing.sellerName}
-          </Link>
+          <div className="flex items-center justify-between gap-3">
+            <Link href={`/seller/${listing.sellerId}`} className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-gradient text-xs font-bold text-white">
+                {listing.sellerName?.[0]?.toUpperCase()}
+              </span>
+              {listing.sellerName}
+            </Link>
+            {messageHref && (
+              <Link href={messageHref} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-fuchsia hover:text-white">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-5.2A8 8 0 1 1 21 12Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
+                Message
+              </Link>
+            )}
+          </div>
 
           <h1 className="mt-4 font-display text-3xl font-700 leading-tight text-white">{listing.title}</h1>
           {rating && (

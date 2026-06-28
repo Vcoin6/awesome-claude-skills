@@ -37,6 +37,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/dashboard/payouts" className="btn-ghost py-2">Payout history</Link>
           <OnboardButton enabled={user.payoutsEnabled} />
           <ListingComposer />
         </div>

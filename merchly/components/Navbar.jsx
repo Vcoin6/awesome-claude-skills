@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Logo from './Logo';
+import NotificationBell from './NotificationBell';
 import { cartCount } from '@/lib/cart';
 
 export default function Navbar({ user }) {
@@ -48,6 +49,18 @@ export default function Navbar({ user }) {
             )}
           </Link>
 
+          {user && (
+            <>
+              <Link href="/favorites" className="hidden h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 sm:grid" aria-label="Saved items">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7.5-4.6-10-9.3C.5 8.2 2 5 5.2 5c2 0 3.3 1.1 4.1 2.3l.7 1 .7-1C11.5 6.1 12.8 5 14.8 5 18 5 19.5 8.2 22 11.7 19.5 16.4 12 21 12 21z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+              </Link>
+              <Link href="/messages" className="hidden h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 sm:grid" aria-label="Messages">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-5.2A8 8 0 1 1 21 12Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+              </Link>
+              <NotificationBell />
+            </>
+          )}
+
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
               <Link href="/orders" className="text-sm text-white/70 hover:text-white">My orders</Link>
@@ -76,6 +89,9 @@ export default function Navbar({ user }) {
         <div className="border-t border-ink-line px-4 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
             <Link href="/marketplace" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Marketplace</Link>
+            {user && <Link href="/favorites" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Saved items</Link>}
+            {user && <Link href="/messages" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Messages</Link>}
+            {user && <Link href="/notifications" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Notifications</Link>}
             {user && <Link href="/orders" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>My orders</Link>}
             {user?.role === 'seller' && <Link href="/dashboard" className="rounded-lg px-3 py-2 text-white/80 hover:bg-white/5" onClick={() => setOpen(false)}>Dashboard</Link>}
             {user ? (
