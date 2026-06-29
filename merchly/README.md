@@ -85,6 +85,10 @@ app reads the publishable key from `/api/config`).
 - ❤️ **Favorites / wishlist** — save listings and revisit them on a dedicated page.
 - 🔔 **Notifications** — in-app notification center (sales, reviews, messages) with an optional **Web Push** layer (VAPID).
 - 💬 **Messaging** — buyer ↔ seller direct messages with unread badges.
+- 🏷️ **Discount codes** — sellers create % or $ promo codes; buyers apply them at checkout.
+- 🚚 **Shipping & tracking** — sellers mark orders shipped with carrier + tracking; buyers see status and a track link.
+- 📈 **Seller analytics** — revenue trend, conversion, AOV, repeat rate, and top products.
+- 🛡️ **Admin/moderation console** — `/admin` (gated by `ADMIN_EMAILS`) to remove listings, suspend users, and delete reviews.
 - 📱 **Native mobile app** — a full iOS/Android app in [`../merchly-mobile`](../merchly-mobile) built on this same API, including native Stripe PaymentSheet checkout.
 - 📱 **Fully responsive** — looks great on phone, tablet, and desktop (mobile-first).
 
