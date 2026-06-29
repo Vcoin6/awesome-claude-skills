@@ -7,7 +7,7 @@ import Logo from './Logo';
 import NotificationBell from './NotificationBell';
 import { cartCount } from '@/lib/cart';
 
-export default function Navbar({ user }) {
+export default function Navbar({ user, isAdmin }) {
   const router = useRouter();
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -64,6 +64,7 @@ export default function Navbar({ user }) {
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
               <Link href="/orders" className="text-sm text-white/70 hover:text-white">My orders</Link>
+              {isAdmin && <Link href="/admin" className="text-sm font-semibold text-red-300 hover:text-white">Admin</Link>}
               {user.role === 'seller' && (
                 <Link href="/dashboard" className="btn-ghost py-2">Dashboard</Link>
               )}

@@ -9,6 +9,7 @@ import {
 } from '@/lib/payments';
 import { notify } from '@/lib/notify';
 import { formatMoney } from '@/lib/format';
+import { validatePromo, normalizeCode } from '@/lib/promos';
 
 // POST /api/checkout
 // Body: { items: [{ id, qty }], buyer: { email, name } }
@@ -23,7 +24,7 @@ import { formatMoney } from '@/lib/format';
 //   pays out each seller their 95%, and decrements stock.
 export async function POST(req) {
   const currentUser = await getRequestUser(req);
-  const { items, buyer } = await req.json().catch(() => ({}));
+  const { items, buyer, code, shipping } = await req.json().catch(() => ({}));
 
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'Your cart is empty.' }, { status: 400 });
@@ -63,6 +64,11 @@ export async function POST(req) {
   const transferGroup = uid('grp');
   const stripe = isStripeEnabled();
 
+  // Resolve an optional promo code to the seller it belongs to.
+  const normalizedCode = normalizeCode(code);
+  const promo = normalizedCode ? db.promos.find((p) => p.code === normalizedCode && p.active) : null;
+  const usedPromoIds = [];
+
   const orders = [];
   const splits = [];
   let totalAmount = 0;
@@ -71,7 +77,20 @@ export async function POST(req) {
 
   for (const [sellerId, sellerLines] of bySeller) {
     const seller = db.users.find((u) => u.id === sellerId);
-    const amount = sellerLines.reduce((s, l) => s + l.lineTotal, 0);
+    const gross = sellerLines.reduce((s, l) => s + l.lineTotal, 0);
+
+    // Apply the promo only to its own seller's subtotal.
+    let discount = 0;
+    let appliedCode = null;
+    if (promo && promo.sellerId === sellerId) {
+      const v = validatePromo(promo, gross);
+      if (v.ok && v.discount > 0) {
+        discount = v.discount;
+        appliedCode = promo.code;
+        usedPromoIds.push(promo.id);
+      }
+    }
+    const amount = Math.max(0, gross - discount);
     const split = feeBreakdown(amount);
 
     orders.push({
@@ -88,10 +107,15 @@ export async function POST(req) {
         priceCents: l.listing.priceCents,
         qty: l.qty,
       })),
+      gross,
+      discount,
+      code: appliedCode,
       amount: split.amount,
       platformFee: split.platformFee,
       sellerNet: split.sellerNet,
       feePercent: split.feePercent,
+      shipping: shipping || null,
+      fulfillment: { status: 'unfulfilled', carrier: null, tracking: null, shippedAt: null },
       paymentMode: stripe ? 'stripe' : 'simulation',
       paymentRef: null,
       // Stripe payouts wait for the webhook; simulation is instantly paid.
@@ -124,6 +148,11 @@ export async function POST(req) {
         const l = d.listings.find((x) => x.id === line.listing.id);
         if (l && typeof l.stock === 'number') l.stock = Math.max(0, l.stock - line.qty);
       }
+    }
+    // Count promo usage (once per checkout it was applied to).
+    for (const pid of usedPromoIds) {
+      const p = d.promos.find((x) => x.id === pid);
+      if (p) p.uses = (p.uses || 0) + 1;
     }
   });
 

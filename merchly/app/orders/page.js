@@ -40,11 +40,29 @@ export default async function OrdersPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-display font-700 text-white">{formatMoney(o.amount)}</p>
-                  <span className={`pill ${o.status === 'paid' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-brand-amber/15 text-brand-amber'}`}>
-                    {o.status}
-                  </span>
+                  <div className="mt-1 flex items-center justify-end gap-1.5">
+                    <span className={`pill ${o.status === 'paid' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-brand-amber/15 text-brand-amber'}`}>
+                      {o.status}
+                    </span>
+                    {o.fulfillment?.status && o.fulfillment.status !== 'unfulfilled' && (
+                      <span className={`pill ${o.fulfillment.status === 'delivered' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-blue-500/15 text-blue-300'}`}>
+                        {o.fulfillment.status}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {o.fulfillment?.status && o.fulfillment.status !== 'unfulfilled' && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-ink-soft px-3 py-2 text-xs text-white/60 ring-1 ring-ink-line">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 7h11v8H3zM14 10h4l3 3v2h-7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><circle cx="7" cy="17" r="1.6" stroke="currentColor" strokeWidth="1.6" /><circle cx="17" cy="17" r="1.6" stroke="currentColor" strokeWidth="1.6" /></svg>
+                  {o.fulfillment.carrier ? `${o.fulfillment.carrier.toUpperCase()} · ` : ''}
+                  {o.fulfillment.tracking || 'In transit'}
+                  {o.fulfillment.trackingUrl && (
+                    <a href={o.fulfillment.trackingUrl} target="_blank" rel="noreferrer" className="ml-auto font-semibold text-brand-fuchsia hover:text-white">Track →</a>
+                  )}
+                </div>
+              )}
 
               <div className="mt-3 space-y-2">
                 {o.items.map((i) => {

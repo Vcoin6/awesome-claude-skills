@@ -9,30 +9,61 @@ import StripePayment from '@/components/StripePayment';
 export default function CheckoutPage() {
   const [items, setItems] = useState([]);
   const [buyer, setBuyer] = useState({ name: '', email: '' });
+  const [shipping, setShipping] = useState({ address: '', city: '', zip: '', country: '' });
   const [card, setCard] = useState({ number: '', exp: '', cvc: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   // When Stripe is configured the API returns a clientSecret to confirm.
   const [stripeIntent, setStripeIntent] = useState(null);
+  // Promo code state.
+  const [codeInput, setCodeInput] = useState('');
+  const [promo, setPromo] = useState(null); // { code, discount, label }
+  const [promoMsg, setPromoMsg] = useState('');
 
   useEffect(() => {
     setItems(getCart());
   }, []);
 
   const subtotal = items.reduce((s, i) => s + i.priceCents * i.qty, 0);
-  const fee = Math.round(subtotal * 0.05);
-  const sellerNet = subtotal - fee;
+  const discount = promo?.discount || 0;
+  const total = Math.max(0, subtotal - discount);
+  const fee = Math.round(total * 0.05);
+  const sellerNet = total - fee;
+
+  async function applyCode() {
+    setPromoMsg('');
+    if (!codeInput.trim()) return;
+    const res = await fetch('/api/promos/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: codeInput, items: items.map((i) => ({ id: i.id, qty: i.qty })) }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      setPromo(null);
+      setPromoMsg(data.error || 'Invalid code.');
+    } else {
+      setPromo(data);
+      setPromoMsg('');
+    }
+  }
 
   // Step 1: create the order(s) + payment intent on the server.
   async function startCheckout(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const hasAddress = shipping.address.trim().length > 0;
     const res = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: items.map((i) => ({ id: i.id, qty: i.qty })), buyer }),
+      body: JSON.stringify({
+        items: items.map((i) => ({ id: i.id, qty: i.qty })),
+        buyer,
+        code: promo?.code || codeInput || null,
+        shipping: hasAddress ? { ...shipping, name: buyer.name } : null,
+      }),
     });
     const data = await res.json();
     setLoading(false);
@@ -109,6 +140,28 @@ export default function CheckoutPage() {
                 <input type="email" className="input" value={buyer.email} onChange={(e) => setBuyer((b) => ({ ...b, email: e.target.value }))} disabled={!!stripeIntent} required />
               </div>
             </div>
+
+            <h3 className="mb-3 mt-5 text-sm font-semibold text-white/80">Shipping address</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="label">Street address</label>
+                <input className="input" value={shipping.address} onChange={(e) => setShipping((s) => ({ ...s, address: e.target.value }))} disabled={!!stripeIntent} placeholder="123 Main St" />
+              </div>
+              <div>
+                <label className="label">City</label>
+                <input className="input" value={shipping.city} onChange={(e) => setShipping((s) => ({ ...s, city: e.target.value }))} disabled={!!stripeIntent} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">ZIP</label>
+                  <input className="input" value={shipping.zip} onChange={(e) => setShipping((s) => ({ ...s, zip: e.target.value }))} disabled={!!stripeIntent} />
+                </div>
+                <div>
+                  <label className="label">Country</label>
+                  <input className="input" value={shipping.country} onChange={(e) => setShipping((s) => ({ ...s, country: e.target.value }))} disabled={!!stripeIntent} />
+                </div>
+              </div>
+            </div>
           </section>
 
           <section className="card p-5">
@@ -169,15 +222,29 @@ export default function CheckoutPage() {
               </div>
             ))}
           </div>
+          {!stripeIntent && (
+            <div className="mt-4 border-t border-ink-line pt-4">
+              <label className="label">Discount code</label>
+              <div className="flex gap-2">
+                <input className="input uppercase" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} placeholder="SUMMER20" />
+                <button type="button" onClick={applyCode} className="btn-ghost px-4">Apply</button>
+              </div>
+              {promo && <p className="mt-2 text-xs text-emerald-300">Code {promo.code} applied — {promo.label} (−{formatMoney(promo.discount)})</p>}
+              {promoMsg && <p className="mt-2 text-xs text-red-300">{promoMsg}</p>}
+            </div>
+          )}
+
           <div className="mt-5 space-y-2 border-t border-ink-line pt-4 text-sm">
             <Row label="Subtotal" value={formatMoney(subtotal)} />
+            {discount > 0 && <Row label={`Discount (${promo.code})`} value={`−${formatMoney(discount)}`} />}
+            <Row label="Total" value={formatMoney(total)} />
             <Row label="To seller (95%)" value={formatMoney(sellerNet)} muted />
             <Row label="Merchly fee (5%)" value={formatMoney(fee)} muted />
           </div>
           {error && <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
           {!stripeIntent && (
             <button type="submit" className="btn-primary mt-5 w-full py-4" disabled={loading}>
-              {loading ? 'Processing…' : `Pay ${formatMoney(subtotal)}`}
+              {loading ? 'Processing…' : `Pay ${formatMoney(total)}`}
             </button>
           )}
         </div>

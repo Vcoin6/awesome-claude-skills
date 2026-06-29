@@ -1,6 +1,7 @@
 import './globals.css';
 import { Space_Grotesk, Inter } from 'next/font/google';
 import { getCurrentUser } from '@/lib/auth';
+import { isAdmin } from '@/lib/admin';
 import { FavoritesProvider } from '@/lib/favorites-context';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -33,11 +34,12 @@ export const viewport = {
 
 export default async function RootLayout({ children }) {
   const user = await getCurrentUser();
+  const admin = isAdmin(user);
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="font-sans min-h-screen flex flex-col">
         <FavoritesProvider loggedIn={!!user}>
-          <Navbar user={user} />
+          <Navbar user={user} isAdmin={admin} />
           <main className="flex-1">{children}</main>
           <Footer />
         </FavoritesProvider>

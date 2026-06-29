@@ -36,8 +36,11 @@ export default async function DashboardPage() {
             Welcome back, {user.name} · <Link href={`/seller/${user.id}`} className="text-brand-fuchsia hover:text-white">View public store →</Link>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/payouts" className="btn-ghost py-2">Payout history</Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/dashboard/orders" className="btn-ghost py-2">Orders</Link>
+          <Link href="/dashboard/promos" className="btn-ghost py-2">Discounts</Link>
+          <Link href="/dashboard/payouts" className="btn-ghost py-2">Payouts</Link>
+          <Link href="/dashboard/analytics" className="btn-ghost py-2">Analytics</Link>
           <OnboardButton enabled={user.payoutsEnabled} />
           <ListingComposer />
         </div>

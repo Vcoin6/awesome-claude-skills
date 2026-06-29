@@ -13,6 +13,9 @@ export async function POST(req) {
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
   }
+  if (user.suspended) {
+    return NextResponse.json({ error: 'This account has been suspended. Contact support.' }, { status: 403 });
+  }
 
   const token = signToken(user);
   setAuthCookie(token);
