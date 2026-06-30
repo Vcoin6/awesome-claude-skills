@@ -11,15 +11,22 @@ export default function ListingComposer() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', price: '', category: 'apparel', stock: '25', tags: '' });
   const [media, setMedia] = useState([]);
+  const [variants, setVariants] = useState([]); // [{ label, stock }]
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   function set(k, v) { setForm((f) => ({ ...f, [k]: v })); }
+  function addVariant() { setVariants((v) => [...v, { label: '', stock: '10' }]); }
+  function setVariant(i, k, val) { setVariants((vs) => vs.map((v, idx) => (idx === i ? { ...v, [k]: val } : v))); }
+  function removeVariant(i) { setVariants((vs) => vs.filter((_, idx) => idx !== i)); }
 
   async function submit(e) {
     e.preventDefault();
     setError('');
     if (media.length === 0) return setError('Add at least one photo or video.');
+    const cleanVariants = variants
+      .map((v) => ({ label: v.label.trim(), stock: Number(v.stock) || 0 }))
+      .filter((v) => v.label);
     setLoading(true);
     const res = await fetch('/api/listings', {
       method: 'POST',
@@ -27,6 +34,7 @@ export default function ListingComposer() {
       body: JSON.stringify({
         ...form,
         tags: form.tags.split(',').map((t) => t.trim().replace(/^#/, '')).filter(Boolean),
+        variants: cleanVariants,
         media,
       }),
     });
@@ -35,6 +43,7 @@ export default function ListingComposer() {
     if (!res.ok) return setError(data.error || 'Could not publish.');
     setForm({ title: '', description: '', price: '', category: 'apparel', stock: '25', tags: '' });
     setMedia([]);
+    setVariants([]);
     setOpen(false);
     router.refresh();
   }
@@ -75,8 +84,8 @@ export default function ListingComposer() {
             <input type="number" min="0.5" step="0.01" className="input" value={form.price} onChange={(e) => set('price', e.target.value)} placeholder="40.00" required />
           </div>
           <div>
-            <label className="label">Stock</label>
-            <input type="number" min="0" step="1" className="input" value={form.stock} onChange={(e) => set('stock', e.target.value)} placeholder="25" />
+            <label className="label">Stock {variants.length > 0 && <span className="text-white/30">(from variants)</span>}</label>
+            <input type="number" min="0" step="1" className="input disabled:opacity-40" value={variants.length > 0 ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0) : form.stock} onChange={(e) => set('stock', e.target.value)} disabled={variants.length > 0} placeholder="25" />
           </div>
           <div>
             <label className="label">Category</label>
@@ -88,6 +97,26 @@ export default function ListingComposer() {
             <label className="label">Tags (comma separated)</label>
             <input className="input" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="streetwear, limited, y2k" />
           </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="label mb-0">Variants — sizes, colors (optional)</label>
+            <button type="button" onClick={addVariant} className="text-xs font-semibold text-brand-fuchsia hover:text-white">+ Add variant</button>
+          </div>
+          {variants.length === 0 ? (
+            <p className="text-xs text-white/35">No variants — the single stock value applies. Add variants for sizes/colors with their own stock.</p>
+          ) : (
+            <div className="space-y-2">
+              {variants.map((v, i) => (
+                <div key={i} className="flex gap-2">
+                  <input className="input flex-1" value={v.label} onChange={(e) => setVariant(i, 'label', e.target.value)} placeholder="e.g. Medium / Black" />
+                  <input type="number" min="0" className="input w-24" value={v.stock} onChange={(e) => setVariant(i, 'stock', e.target.value)} placeholder="Stock" />
+                  <button type="button" onClick={() => removeVariant(i)} className="px-2 text-white/40 hover:text-red-300">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {form.price && (

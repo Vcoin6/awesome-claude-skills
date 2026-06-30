@@ -25,31 +25,41 @@ export function cartCount() {
   return read().reduce((n, i) => n + i.qty, 0);
 }
 
-export function addToCart(listing, qty = 1) {
+// Each cart line is keyed by listing + variant, so the same product in two
+// sizes lives as two lines.
+function lineKeyFor(listingId, variantId) {
+  return `${listingId}__${variantId || 'default'}`;
+}
+
+export function addToCart(listing, qty = 1, variant = null) {
   const items = read();
-  const existing = items.find((i) => i.id === listing.id);
+  const lineKey = lineKeyFor(listing.id, variant?.id);
+  const existing = items.find((i) => i.lineKey === lineKey);
   if (existing) {
     existing.qty += qty;
   } else {
     items.push({
+      lineKey,
       id: listing.id,
       title: listing.title,
       priceCents: listing.priceCents,
       cover: listing.media?.[0]?.url || null,
       sellerName: listing.sellerName,
+      variantId: variant?.id || null,
+      variantLabel: variant?.label || null,
       qty,
     });
   }
   write(items);
 }
 
-export function updateQty(id, qty) {
-  const items = read().map((i) => (i.id === id ? { ...i, qty: Math.max(1, qty) } : i));
+export function updateQty(lineKey, qty) {
+  const items = read().map((i) => (i.lineKey === lineKey ? { ...i, qty: Math.max(1, qty) } : i));
   write(items);
 }
 
-export function removeFromCart(id) {
-  write(read().filter((i) => i.id !== id));
+export function removeFromCart(lineKey) {
+  write(read().filter((i) => i.lineKey !== lineKey));
 }
 
 export function clearCart() {

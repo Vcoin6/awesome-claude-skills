@@ -10,6 +10,7 @@ import {
 import { notify } from '@/lib/notify';
 import { formatMoney } from '@/lib/format';
 import { validatePromo, normalizeCode } from '@/lib/promos';
+import { emailOrderReceipt, emailNewSale } from '@/lib/email';
 
 // POST /api/checkout
 // Body: { items: [{ id, qty }], buyer: { email, name } }
@@ -46,11 +47,23 @@ export async function POST(req) {
     if (!listing) {
       return NextResponse.json({ error: 'An item in your cart is no longer available.' }, { status: 409 });
     }
-    if ((listing.stock || 0) <= 0) {
+    // Resolve the chosen variant (if any) and validate against its own stock.
+    const hasVariants = Array.isArray(listing.variants) && listing.variants.length > 0;
+    let variant = null;
+    if (hasVariants) {
+      variant = listing.variants.find((v) => v.id === item.variantId);
+      if (!variant) {
+        return NextResponse.json({ error: `Choose an option for “${listing.title}”.` }, { status: 400 });
+      }
+      if ((variant.stock || 0) <= 0) {
+        return NextResponse.json({ error: `“${listing.title}” (${variant.label}) is sold out.` }, { status: 409 });
+      }
+    } else if ((listing.stock || 0) <= 0) {
       return NextResponse.json({ error: `“${listing.title}” is sold out.` }, { status: 409 });
     }
-    const qty = Math.max(1, Math.min(Number(item.qty) || 1, listing.stock));
-    lines.push({ listing, qty, lineTotal: listing.priceCents * qty });
+    const cap = hasVariants ? variant.stock : listing.stock;
+    const qty = Math.max(1, Math.min(Number(item.qty) || 1, cap));
+    lines.push({ listing, variant, qty, lineTotal: listing.priceCents * qty });
   }
 
   // Group by seller so each seller gets their own 95% payout.
@@ -106,6 +119,8 @@ export async function POST(req) {
         title: l.listing.title,
         priceCents: l.listing.priceCents,
         qty: l.qty,
+        variantId: l.variant?.id || null,
+        variantLabel: l.variant?.label || null,
       })),
       gross,
       discount,
@@ -146,7 +161,14 @@ export async function POST(req) {
     if (!stripe) {
       for (const line of lines) {
         const l = d.listings.find((x) => x.id === line.listing.id);
-        if (l && typeof l.stock === 'number') l.stock = Math.max(0, l.stock - line.qty);
+        if (!l) continue;
+        if (line.variant && Array.isArray(l.variants)) {
+          const v = l.variants.find((x) => x.id === line.variant.id);
+          if (v) v.stock = Math.max(0, v.stock - line.qty);
+          l.stock = l.variants.reduce((s, x) => s + x.stock, 0);
+        } else if (typeof l.stock === 'number') {
+          l.stock = Math.max(0, l.stock - line.qty);
+        }
       }
     }
     // Count promo usage (once per checkout it was applied to).
@@ -166,6 +188,9 @@ export async function POST(req) {
         body: `${buyerInfo.name} bought ${o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')} — you earned ${formatMoney(o.sellerNet)}.`,
         url: '/dashboard',
       });
+      const seller = db.users.find((u) => u.id === o.sellerId);
+      emailNewSale(o, seller?.email).catch(() => {});
+      emailOrderReceipt(o).catch(() => {});
     }
     if (buyerInfo.id) {
       await notify(buyerInfo.id, {

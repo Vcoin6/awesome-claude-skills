@@ -3,6 +3,7 @@ import { readDB, writeDB } from '@/lib/db';
 import { constructWebhookEvent, payoutToSellers } from '@/lib/payments';
 import { notify } from '@/lib/notify';
 import { formatMoney } from '@/lib/format';
+import { emailOrderReceipt, emailNewSale } from '@/lib/email';
 
 // POST /api/webhooks/stripe
 // Configure this URL in your Stripe Dashboard (or `stripe listen --forward-to`)
@@ -48,7 +49,12 @@ async function onPaymentSucceeded(intent) {
       o.status = 'paid';
       for (const item of o.items) {
         const listing = d.listings.find((l) => l.id === item.listingId);
-        if (listing && typeof listing.stock === 'number') {
+        if (!listing) continue;
+        if (item.variantId && Array.isArray(listing.variants)) {
+          const v = listing.variants.find((x) => x.id === item.variantId);
+          if (v) v.stock = Math.max(0, v.stock - item.qty);
+          listing.stock = listing.variants.reduce((s, x) => s + x.stock, 0);
+        } else if (typeof listing.stock === 'number') {
           listing.stock = Math.max(0, listing.stock - item.qty);
         }
       }
@@ -75,6 +81,9 @@ async function onPaymentSucceeded(intent) {
       body: `${o.buyerName} bought ${o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')} — you earned ${formatMoney(o.sellerNet)}.`,
       url: '/dashboard',
     });
+    const seller = db.users.find((u) => u.id === o.sellerId);
+    emailNewSale(o, seller?.email).catch(() => {});
+    emailOrderReceipt(o).catch(() => {});
   }
   if (orders[0].buyerId) {
     await notify(orders[0].buyerId, {

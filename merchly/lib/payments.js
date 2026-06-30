@@ -102,6 +102,26 @@ export async function payoutToSellers({ transferGroup, currency = 'usd', splits,
   return out;
 }
 
+// Refund a paid order. In the separate charges & transfers model we refund the
+// buyer's charge AND claw back the seller's transfer so the platform isn't left
+// short. Simulation just reports success.
+export async function refundOrder({ paymentIntentId, transferRef, amountCents, sellerNetCents }) {
+  if (!isStripeEnabled() || !paymentIntentId || String(paymentIntentId).startsWith('sim_')) {
+    return { mode: 'simulation', status: 'refunded', id: `sim_re_${Math.random().toString(36).slice(2, 10)}` };
+  }
+  const stripe = await getStripe();
+  const refund = await stripe.refunds.create({ payment_intent: paymentIntentId, amount: amountCents });
+  // Reverse the seller transfer (best-effort) to recover the 95% that was paid out.
+  if (transferRef && !String(transferRef).startsWith('sim')) {
+    try {
+      await stripe.transfers.createReversal(transferRef, { amount: sellerNetCents });
+    } catch {
+      // Transfer may already be (partially) reversed or funds unavailable; ignore.
+    }
+  }
+  return { mode: 'stripe', status: refund.status, id: refund.id };
+}
+
 // ── Seller onboarding (Stripe Connect Express) ───────────────────────────────
 
 export async function createSellerOnboarding({ user, returnUrl }) {

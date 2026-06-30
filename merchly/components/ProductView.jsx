@@ -13,21 +13,40 @@ export default function ProductView({ listing, rating, canReview, messageHref })
   const router = useRouter();
   const [active, setActive] = useState(0);
   const [added, setAdded] = useState(false);
+  const variants = Array.isArray(listing.variants) ? listing.variants : [];
+  const hasVariants = variants.length > 0;
+  const [variantId, setVariantId] = useState(null);
+  const [needPick, setNeedPick] = useState(false);
   const media = listing.media || [];
   const current = media[active];
 
+  const selectedVariant = variants.find((v) => v.id === variantId) || null;
+
+  function resolveVariant() {
+    if (!hasVariants) return { ok: true, variant: null };
+    if (!selectedVariant) {
+      setNeedPick(true);
+      return { ok: false };
+    }
+    return { ok: true, variant: { id: selectedVariant.id, label: selectedVariant.label } };
+  }
+
   function add() {
-    addToCart(listing, 1);
+    const r = resolveVariant();
+    if (!r.ok) return;
+    addToCart(listing, 1, r.variant);
     setAdded(true);
     setTimeout(() => setAdded(false), 1600);
   }
 
   function buyNow() {
-    addToCart(listing, 1);
+    const r = resolveVariant();
+    if (!r.ok) return;
+    addToCart(listing, 1, r.variant);
     router.push('/checkout');
   }
 
-  const soldOut = listing.stock <= 0;
+  const soldOut = hasVariants ? variants.every((v) => v.stock <= 0) : listing.stock <= 0;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -117,6 +136,33 @@ export default function ProductView({ listing, rating, canReview, messageHref })
               {listing.tags.map((t) => (
                 <span key={t} className="pill bg-white/5 text-white/50 ring-1 ring-white/10">#{t}</span>
               ))}
+            </div>
+          )}
+
+          {hasVariants && (
+            <div className="mt-6">
+              <p className="label">Choose an option {needPick && !selectedVariant && <span className="text-red-300">— required</span>}</p>
+              <div className="flex flex-wrap gap-2">
+                {variants.map((v) => {
+                  const out = v.stock <= 0;
+                  const sel = v.id === variantId;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      disabled={out}
+                      onClick={() => { setVariantId(v.id); setNeedPick(false); }}
+                      className={`rounded-xl px-4 py-2 text-sm font-semibold ring-1 transition ${
+                        sel ? 'bg-brand-gradient text-white ring-transparent'
+                        : out ? 'cursor-not-allowed text-white/25 ring-ink-line line-through'
+                        : 'bg-white/5 text-white/80 ring-ink-line hover:ring-brand-violet/60'
+                      }`}
+                    >
+                      {v.label}{out ? ' (sold out)' : v.stock <= 5 ? ` · ${v.stock} left` : ''}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

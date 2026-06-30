@@ -35,7 +35,7 @@ export default function CartPage() {
       <div className="mt-6 grid gap-8 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           {items.map((i) => (
-            <div key={i.id} className="card flex items-center gap-4 p-3">
+            <div key={i.lineKey || i.id} className="card flex items-center gap-4 p-3">
               <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-ink-soft">
                 {i.cover && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -44,16 +44,16 @@ export default function CartPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <Link href={`/product/${i.id}`} className="line-clamp-1 font-semibold text-white hover:text-brand-fuchsia">{i.title}</Link>
-                <p className="text-xs text-white/45">by {i.sellerName}</p>
+                <p className="text-xs text-white/45">by {i.sellerName}{i.variantLabel ? ` · ${i.variantLabel}` : ''}</p>
                 <div className="mt-2 inline-flex items-center rounded-lg ring-1 ring-ink-line">
-                  <button onClick={() => updateQty(i.id, i.qty - 1)} className="px-3 py-1 text-white/60 hover:text-white">−</button>
+                  <button onClick={() => updateQty(i.lineKey, i.qty - 1)} className="px-3 py-1 text-white/60 hover:text-white">−</button>
                   <span className="w-8 text-center text-sm text-white">{i.qty}</span>
-                  <button onClick={() => updateQty(i.id, i.qty + 1)} className="px-3 py-1 text-white/60 hover:text-white">+</button>
+                  <button onClick={() => updateQty(i.lineKey, i.qty + 1)} className="px-3 py-1 text-white/60 hover:text-white">+</button>
                 </div>
               </div>
               <div className="text-right">
                 <div className="font-semibold text-white">{formatMoney(i.priceCents * i.qty)}</div>
-                <button onClick={() => removeFromCart(i.id)} className="mt-2 text-xs text-white/40 hover:text-red-300">Remove</button>
+                <button onClick={() => removeFromCart(i.lineKey)} className="mt-2 text-xs text-white/40 hover:text-red-300">Remove</button>
               </div>
             </div>
           ))}
