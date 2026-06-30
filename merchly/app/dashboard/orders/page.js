@@ -4,6 +4,7 @@ import { readDB } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatMoney, timeAgo } from '@/lib/format';
 import ShipControls from '@/components/ShipControls';
+import { ResolveRefund } from '@/components/RefundControls';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,9 @@ export default async function SellerOrdersPage() {
   if (user.role !== 'seller') redirect('/marketplace');
 
   const db = await readDB();
+  const refundRequests = db.orders
+    .filter((o) => o.sellerId === user.id && o.refund?.status === 'requested')
+    .sort((a, b) => new Date(b.refund.requestedAt) - new Date(a.refund.requestedAt));
   const orders = db.orders
     .filter((o) => o.sellerId === user.id && o.status === 'paid')
     .sort((a, b) => {
@@ -31,6 +35,26 @@ export default async function SellerOrdersPage() {
       <p className="mb-8 text-sm text-white/50">
         {toShip > 0 ? `${toShip} order${toShip > 1 ? 's' : ''} awaiting shipment.` : 'You’re all caught up — nothing to ship.'}
       </p>
+
+      {refundRequests.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 font-display text-lg font-700 text-brand-amber">Refund requests ({refundRequests.length})</h2>
+          <div className="space-y-3">
+            {refundRequests.map((o) => (
+              <div key={o.id} className="card border border-brand-amber/20 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">#{o.id.slice(-6).toUpperCase()} · {formatMoney(o.amount)}</p>
+                    <p className="text-xs text-white/45">{o.buyerName} · {o.items.map((i) => `${i.qty}× ${i.title}`).join(', ')}</p>
+                    {o.refund.reason && <p className="mt-1 text-xs text-white/60">“{o.refund.reason}”</p>}
+                  </div>
+                  <ResolveRefund orderId={o.id} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {orders.length === 0 ? (
         <div className="card grid place-items-center px-6 py-16 text-center text-white/50">No paid orders yet.</div>

@@ -89,6 +89,10 @@ app reads the publishable key from `/api/config`).
 - 🚚 **Shipping & tracking** — sellers mark orders shipped with carrier + tracking; buyers see status and a track link.
 - 📈 **Seller analytics** — revenue trend, conversion, AOV, repeat rate, and top products.
 - 🛡️ **Admin/moderation console** — `/admin` (gated by `ADMIN_EMAILS`) to remove listings, suspend users, and delete reviews.
+- 🔁 **Returns & refunds** — buyers request refunds; sellers approve/reject; approved refunds restock and (with Stripe) refund the charge + reverse the transfer.
+- 🎨 **Product variants** — sizes/colors with per-variant stock, selected at the product page and tracked through checkout.
+- 📧 **Email receipts** — buyer receipts + seller sale emails via Resend (optional, gated by `RESEND_API_KEY`).
+- 🗂️ **Category landing pages** — `/category/[slug]` SEO pages + a "Shop by category" home section.
 - 📱 **Native mobile app** — a full iOS/Android app in [`../merchly-mobile`](../merchly-mobile) built on this same API, including native Stripe PaymentSheet checkout.
 - 📱 **Fully responsive** — looks great on phone, tablet, and desktop (mobile-first).
 

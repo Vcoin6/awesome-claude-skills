@@ -37,7 +37,7 @@ export default function CheckoutPage() {
     const res = await fetch('/api/promos/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: codeInput, items: items.map((i) => ({ id: i.id, qty: i.qty })) }),
+      body: JSON.stringify({ code: codeInput, items: items.map((i) => ({ id: i.id, qty: i.qty, variantId: i.variantId })) }),
     });
     const data = await res.json();
     if (!data.ok) {
@@ -59,7 +59,7 @@ export default function CheckoutPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: items.map((i) => ({ id: i.id, qty: i.qty })),
+        items: items.map((i) => ({ id: i.id, qty: i.qty, variantId: i.variantId })),
         buyer,
         code: promo?.code || codeInput || null,
         shipping: hasAddress ? { ...shipping, name: buyer.name } : null,
@@ -207,7 +207,7 @@ export default function CheckoutPage() {
           <h2 className="font-display text-lg font-700 text-white">Order</h2>
           <div className="mt-4 space-y-3">
             {items.map((i) => (
-              <div key={i.id} className="flex items-center gap-3">
+              <div key={i.lineKey || i.id} className="flex items-center gap-3">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-ink-soft">
                   {i.cover && (
                     // eslint-disable-next-line @next/next/no-img-element

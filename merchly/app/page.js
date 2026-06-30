@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { readDB } from '@/lib/db';
 import { attachRatings } from '@/lib/reviews';
+import { CATEGORIES } from '@/lib/categories';
 import ProductCard from '@/components/ProductCard';
 
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,20 @@ export default async function Home() {
             <Stat value="95%" label="You keep" />
             <Stat value="<60s" label="To your first listing" />
           </div>
+        </div>
+      </section>
+
+      {/* ───────────── Shop by category ───────────── */}
+      <section className="mx-auto max-w-7xl px-6 pt-8">
+        <h2 className="mb-4 font-display text-2xl font-700 text-white sm:text-3xl">Shop by category</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {CATEGORIES.filter((c) => c.slug !== 'other').map((c) => (
+            <Link key={c.slug} href={`/category/${c.slug}`} className="card group relative overflow-hidden p-5 transition hover:ring-brand-violet/60">
+              <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-brand-violet/10 blur-2xl transition group-hover:bg-brand-violet/20" />
+              <h3 className="relative font-display text-lg font-700 text-white">{c.name}</h3>
+              <p className="relative mt-1 line-clamp-2 text-xs text-white/45">{c.blurb}</p>
+            </Link>
+          ))}
         </div>
       </section>
 

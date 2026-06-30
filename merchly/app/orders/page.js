@@ -4,6 +4,7 @@ import { readDB } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { canUserReview } from '@/lib/reviews';
 import { formatMoney, timeAgo } from '@/lib/format';
+import { RequestRefund } from '@/components/RefundControls';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,6 +87,12 @@ export default async function OrdersPage() {
                   );
                 })}
               </div>
+
+              {(o.status === 'paid' || o.refund) && (
+                <div className="mt-3 flex items-center justify-end border-t border-ink-line pt-3">
+                  <RequestRefund orderId={o.id} refund={o.refund} />
+                </div>
+              )}
             </div>
           ))}
         </div>

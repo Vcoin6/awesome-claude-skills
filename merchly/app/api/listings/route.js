@@ -49,7 +49,7 @@ export async function POST(req) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { title, description, price, category, tags, media, stock } = body;
+  const { title, description, price, category, tags, media, stock, variants } = body;
 
   if (!title || !price) {
     return NextResponse.json({ error: 'Title and price are required.' }, { status: 400 });
@@ -62,6 +62,18 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Add at least one photo or video.' }, { status: 400 });
   }
 
+  // Optional variants (e.g. sizes/colors). Each carries its own stock.
+  const cleanVariants = Array.isArray(variants)
+    ? variants
+        .map((v) => ({
+          id: uid('var'),
+          label: String(v.label || '').trim().slice(0, 40),
+          stock: Number.isFinite(Number(v.stock)) ? Math.max(0, Number(v.stock)) : 0,
+        }))
+        .filter((v) => v.label)
+        .slice(0, 20)
+    : [];
+
   const listing = {
     id: uid('lst'),
     sellerId: user.id,
@@ -71,7 +83,11 @@ export async function POST(req) {
     category: category || 'other',
     tags: Array.isArray(tags) ? tags.slice(0, 12) : [],
     priceCents,
-    stock: Number.isFinite(Number(stock)) ? Math.max(0, Number(stock)) : 99,
+    // When variants exist, total stock is their sum.
+    stock: cleanVariants.length
+      ? cleanVariants.reduce((s, v) => s + v.stock, 0)
+      : Number.isFinite(Number(stock)) ? Math.max(0, Number(stock)) : 99,
+    variants: cleanVariants,
     media: media.slice(0, 10),
     status: 'active',
     views: 0,
